@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet'
-import { ICheckIn } from '@/models/CheckIn'
+import { ICheckIn } from '@/types/race'
 import { CHECKPOINTS } from '@/data/checkpoints'
 import 'leaflet/dist/leaflet.css'
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
-import { StatusUpdate, STATUS_OPTIONS } from '@/models/StatusUpdate'
+import { StatusUpdate } from '@/models/StatusUpdate'
+import { STATUS_OPTIONS } from '@/types/race'
 
 function verifyPin(req: NextRequest) {
   const pin = req.headers.get('x-runner-pin')

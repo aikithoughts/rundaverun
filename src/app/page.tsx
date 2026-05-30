@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ICheckIn } from '@/models/CheckIn'
-import { IStatusUpdate, STATUS_OPTIONS } from '@/models/StatusUpdate'
+import { ICheckIn, IStatusUpdate, STATUS_OPTIONS } from '@/types/race'
 import { CHECKPOINTS, TOTAL_MILES } from '@/data/checkpoints'
 
 const RaceMap = dynamic(() => import('@/components/RaceMap'), { ssr: false })

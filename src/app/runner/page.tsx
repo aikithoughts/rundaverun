@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { CHECKPOINTS } from '@/data/checkpoints'
-import { STATUS_OPTIONS } from '@/models/StatusUpdate'
+import { STATUS_OPTIONS } from '@/types/race'
 
 const RaceMap = dynamic(() => import('@/components/RaceMap'), { ssr: false })
 
