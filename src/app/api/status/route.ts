@@ -36,3 +36,14 @@ export async function GET() {
   const updates = await StatusUpdate.find().sort({ timestamp: -1 }).limit(20)
   return NextResponse.json(updates)
 }
+
+export async function DELETE(req: NextRequest) {
+  if (!verifyPin(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  await connectToDatabase()
+  const latest = await StatusUpdate.findOne().sort({ timestamp: -1 })
+  if (!latest) return NextResponse.json({ error: 'Nothing to undo' }, { status: 404 })
+  await StatusUpdate.deleteOne({ _id: latest._id })
+  return NextResponse.json({ deleted: latest._id })
+}

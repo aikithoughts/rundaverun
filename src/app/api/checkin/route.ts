@@ -39,3 +39,14 @@ export async function GET() {
   const checkIns = await CheckIn.find().sort({ timestamp: -1 })
   return NextResponse.json(checkIns)
 }
+
+export async function DELETE(req: NextRequest) {
+  if (!verifyPin(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  await connectToDatabase()
+  const latest = await CheckIn.findOne().sort({ timestamp: -1 })
+  if (!latest) return NextResponse.json({ error: 'Nothing to undo' }, { status: 404 })
+  await CheckIn.deleteOne({ _id: latest._id })
+  return NextResponse.json({ deleted: latest._id })
+}

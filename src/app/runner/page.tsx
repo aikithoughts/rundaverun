@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { CHECKPOINTS } from '@/data/checkpoints'
 import { STATUS_OPTIONS } from '@/types/race'
@@ -18,6 +18,47 @@ export default function RunnerView() {
   const [lastStatus, setLastStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState<{ msg: string; ok: boolean } | null>(null)
+  const [undoType, setUndoType] = useState<'checkin' | 'status' | null>(null)
+  const [undoSeconds, setUndoSeconds] = useState(0)
+  const undoTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  function startUndoCountdown(type: 'checkin' | 'status') {
+    if (undoTimer.current) clearInterval(undoTimer.current)
+    setUndoType(type)
+    setUndoSeconds(10)
+    undoTimer.current = setInterval(() => {
+      setUndoSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(undoTimer.current!)
+          setUndoType(null)
+          return 0
+        }
+        return s - 1
+      })
+    }, 1000)
+  }
+
+  async function doUndo() {
+    if (!undoType) return
+    if (undoTimer.current) clearInterval(undoTimer.current)
+    setUndoType(null)
+    setBusy(true)
+    try {
+      await fetch(`/api/${undoType === 'checkin' ? 'checkin' : 'status'}`, {
+        method: 'DELETE',
+        headers: { 'x-runner-pin': pin },
+      })
+      if (undoType === 'checkin') setLastCheckIn(null)
+      else setLastStatus(null)
+      setFeedback({ msg: 'Undone', ok: true })
+    } catch {
+      setFeedback({ msg: 'Undo failed', ok: false })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  useEffect(() => () => { if (undoTimer.current) clearInterval(undoTimer.current) }, [])
 
   function handlePinSubmit() {
     // We verify the PIN server-side on every request.
@@ -58,6 +99,7 @@ export default function RunnerView() {
         const cp = CHECKPOINTS.find((c) => c.id === checkpointId)
         setLastCheckIn(checkpointId)
         setFeedback({ msg: `Checked in: ${cp?.shortName}`, ok: true })
+        startUndoCountdown('checkin')
       } else if (res.status === 401) {
         setView('pin')
         setPinError(true)
@@ -83,6 +125,7 @@ export default function RunnerView() {
       if (res.ok) {
         setLastStatus(type)
         setFeedback({ msg: `Status: ${label}`, ok: true })
+        startUndoCountdown('status')
       } else if (res.status === 401) {
         setView('pin')
         setPinError(true)
@@ -148,6 +191,16 @@ export default function RunnerView() {
       <div className="h-48">
         <RaceMap checkIns={lastCheckIn ? [{ checkpointId: lastCheckIn } as never] : []} minimal />
       </div>
+
+      {/* Undo button */}
+      {undoType && (
+        <button
+          onClick={doUndo}
+          className="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 text-sm transition-colors"
+        >
+          Undo last {undoType === 'checkin' ? 'check-in' : 'status'} ({undoSeconds}s)
+        </button>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800">
