@@ -3,6 +3,7 @@
 
 export interface ICheckIn {
   _id?: string
+  raceId?: string
   checkpointId: string
   checkpointName: string
   mile: number
@@ -13,9 +14,17 @@ export interface ICheckIn {
 
 export interface IStatusUpdate {
   _id?: string
+  raceId?: string
   type: string
   label: string
   timestamp: string | Date
+}
+
+export interface IRace {
+  _id: string
+  startedAt: string | Date
+  finishedAt?: string | Date
+  status: 'active' | 'finished'
 }
 
 export type StatusType =

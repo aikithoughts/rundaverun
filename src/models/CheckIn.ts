@@ -2,6 +2,7 @@ import mongoose, { Schema, model, models } from 'mongoose'
 import type { ICheckIn } from '@/types/race'
 
 const CheckInSchema = new Schema<ICheckIn>({
+  raceId:         { type: Schema.Types.ObjectId, required: true, ref: 'Race' },
   checkpointId:   { type: String, required: true },
   checkpointName: { type: String, required: true },
   mile:           { type: Number, required: true },

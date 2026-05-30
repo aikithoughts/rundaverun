@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { CheckIn } from '@/models/CheckIn'
+import { Race } from '@/models/Race'
 import { CHECKPOINTS } from '@/data/checkpoints'
 
 function verifyPin(req: NextRequest) {
   const pin = req.headers.get('x-runner-pin')
   return pin === process.env.RUNNER_PIN
+}
+
+async function getActiveRace() {
+  return Race.findOne({ status: 'active' }).sort({ startedAt: -1 })
 }
 
 export async function POST(req: NextRequest) {
@@ -23,7 +28,13 @@ export async function POST(req: NextRequest) {
 
   await connectToDatabase()
 
+  const race = await getActiveRace()
+  if (!race) {
+    return NextResponse.json({ error: 'No active race. Start a race first.' }, { status: 409 })
+  }
+
   const checkIn = await CheckIn.create({
+    raceId: race._id,
     checkpointId: checkpoint.id,
     checkpointName: checkpoint.name,
     mile: checkpoint.mile,
@@ -36,7 +47,9 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   await connectToDatabase()
-  const checkIns = await CheckIn.find().sort({ timestamp: -1 })
+  const race = await getActiveRace()
+  if (!race) return NextResponse.json([])
+  const checkIns = await CheckIn.find({ raceId: race._id }).sort({ timestamp: -1 })
   return NextResponse.json(checkIns)
 }
 
@@ -45,7 +58,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   await connectToDatabase()
-  const latest = await CheckIn.findOne().sort({ timestamp: -1 })
+  const race = await getActiveRace()
+  if (!race) return NextResponse.json({ error: 'No active race' }, { status: 404 })
+  const latest = await CheckIn.findOne({ raceId: race._id }).sort({ timestamp: -1 })
   if (!latest) return NextResponse.json({ error: 'Nothing to undo' }, { status: 404 })
   await CheckIn.deleteOne({ _id: latest._id })
   return NextResponse.json({ deleted: latest._id })
