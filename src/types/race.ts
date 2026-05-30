@@ -22,9 +22,9 @@ export interface IStatusUpdate {
 
 export interface IRace {
   _id: string
+  name: string
   startedAt: string | Date
-  finishedAt?: string | Date
-  status: 'active' | 'finished'
+  status: 'active' | 'inactive'
 }
 
 export type StatusType =

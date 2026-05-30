@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ICheckIn, IStatusUpdate, STATUS_OPTIONS } from '@/types/race'
+import { ICheckIn, IStatusUpdate, IRace, STATUS_OPTIONS } from '@/types/race'
 import { CHECKPOINTS, TOTAL_MILES } from '@/data/checkpoints'
 
 const RaceMap = dynamic(() => import('@/components/RaceMap'), { ssr: false })
 
 export default function SupporterView() {
+  const [race, setRace] = useState<IRace | null>(null)
   const [checkIns, setCheckIns] = useState<ICheckIn[]>([])
   const [statusUpdates, setStatusUpdates] = useState<IStatusUpdate[]>([])
   const [lastFetch, setLastFetch] = useState<Date | null>(null)
@@ -16,6 +17,7 @@ export default function SupporterView() {
     try {
       const res = await fetch('/api/race-data')
       const data = await res.json()
+      setRace(data.race)
       setCheckIns(data.checkIns)
       setStatusUpdates(data.statusUpdates)
       setLastFetch(new Date())
@@ -46,7 +48,7 @@ export default function SupporterView() {
       <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-white">Run Dave Run 🏃</h1>
-          <p className="text-xs text-gray-400">Centennial Trail 100k · June 13, 2026</p>
+          <p className="text-xs text-gray-400">{race ? race.name : 'Centennial Trail 100k · June 13, 2026'}</p>
         </div>
         <a href="/runner" className="text-xs text-gray-500 hover:text-gray-300">
           Runner
