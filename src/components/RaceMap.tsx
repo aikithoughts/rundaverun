@@ -6,9 +6,8 @@ import { ICheckIn } from '@/types/race'
 import { CHECKPOINTS } from '@/data/checkpoints'
 import 'leaflet/dist/leaflet.css'
 
-// Full route coordinates extracted from the MapMyRun GPX
-// Simplified to key points for performance — full resolution not needed for display
-const ROUTE_COORDS: [number, number][] = [
+// Outbound route coordinates (start → turnaround)
+const OUTBOUND_COORDS: [number, number][] = [
   [47.91109, -122.0927],
   [47.91301, -122.08759],
   [47.91862, -122.08681],
@@ -148,6 +147,12 @@ const ROUTE_COORDS: [number, number][] = [
   [48.29214, -122.19729],
 ]
 
+// Full out-and-back route: outbound + return (outbound reversed, turnaround not duplicated)
+const ROUTE_COORDS: [number, number][] = [
+  ...OUTBOUND_COORDS,
+  ...OUTBOUND_COORDS.slice(0, -1).reverse(),
+]
+
 interface Props {
   checkIns: ICheckIn[]
   minimal?: boolean
@@ -172,27 +177,24 @@ export default function RaceMap({ checkIns, minimal = false }: Props) {
     ? CHECKPOINTS.find((c) => c.id === latestCheckIn.checkpointId)
     : null
 
-  // Split route into completed and remaining segments based on latest checkpoint index
-  const latestIndex = latestCheckpoint
+  // Use checkpoint index to determine progress through the full route.
+  // This works correctly for out-and-back and any other course shape —
+  // no coordinate lookup needed, so return-leg checkpoints aren't confused
+  // with their outbound counterparts at the same lat/lng.
+  const latestCpIndex = latestCheckpoint
     ? CHECKPOINTS.findIndex((c) => c.id === latestCheckpoint.id)
     : -1
 
-  // Find the closest route coord index for the latest checkpoint
-  const latestRouteIndex = latestCheckpoint
-    ? ROUTE_COORDS.reduce((best, coord, i) => {
-        const d =
-          Math.abs(coord[0] - latestCheckpoint.lat) +
-          Math.abs(coord[1] - latestCheckpoint.lng)
-        return d < best.d ? { i, d } : best
-      }, { i: 0, d: Infinity }).i
-    : -1
+  const splitIndex = latestCpIndex >= 0
+    ? Math.round(((latestCpIndex + 1) / CHECKPOINTS.length) * ROUTE_COORDS.length)
+    : 0
 
-  const completedRoute = latestRouteIndex >= 0 ? ROUTE_COORDS.slice(0, latestRouteIndex + 1) : []
-  const remainingRoute = latestRouteIndex >= 0 ? ROUTE_COORDS.slice(latestRouteIndex) : ROUTE_COORDS
+  const completedRoute = splitIndex > 0 ? ROUTE_COORDS.slice(0, splitIndex) : []
+  const remainingRoute = ROUTE_COORDS.slice(splitIndex)
 
   const center: [number, number] = latestCheckpoint
     ? [latestCheckpoint.lat, latestCheckpoint.lng]
-    : [48.1, -122.12] // center of the trail
+    : [48.1, -122.12]
 
   return (
     <MapContainer
@@ -217,8 +219,12 @@ export default function RaceMap({ checkIns, minimal = false }: Props) {
         <Polyline positions={completedRoute} color="#22c55e" weight={4} />
       )}
 
-      {/* Checkpoint markers */}
-      {CHECKPOINTS.map((cp, i) => {
+      {/* Checkpoint markers — deduplicated by lat/lng so return stops don't
+          draw a second dot on top of their outbound counterpart */}
+      {CHECKPOINTS.filter((cp, i, all) =>
+        i === all.findIndex((c) => c.lat === cp.lat && c.lng === cp.lng) ||
+        completedIds.has(cp.id)
+      ).map((cp) => {
         const done = completedIds.has(cp.id)
         const isCurrent = latestCheckpoint?.id === cp.id
         return (
