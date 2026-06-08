@@ -11,8 +11,10 @@ type View = 'pin' | 'select' | 'racing' | 'deleting'
 
 export default function RunnerView() {
   const [view, setView] = useState<View>('pin')
-  const [pin, setPin] = useState('')
+  const [digits, setDigits] = useState<string[]>(['', '', '', ''])
   const [pinError, setPinError] = useState(false)
+  const digitRefs = useRef<(HTMLInputElement | null)[]>([])
+  const pin = digits.join('')
 
   const [races, setRaces] = useState<IRace[]>([])
   const [activeRace, setActiveRace] = useState<IRace | null>(null)
@@ -43,6 +45,43 @@ export default function RunnerView() {
     }
   }
 
+  function handleDigitChange(index: number, value: string) {
+    const digit = value.replace(/\D/g, '').slice(-1)
+    const next = [...digits]
+    next[index] = digit
+    setDigits(next)
+    if (digit && index < 3) {
+      digitRefs.current[index + 1]?.focus()
+    } else if (digit && index === 3 && next.every((d) => d !== '')) {
+      setPinError(false)
+      loadRaces()
+    }
+  }
+
+  function handleDigitKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) {
+      const next = [...digits]
+      next[index - 1] = ''
+      setDigits(next)
+      digitRefs.current[index - 1]?.focus()
+    }
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4)
+    if (pasted.length > 0) {
+      const next = ['', '', '', '']
+      pasted.split('').forEach((d, i) => { next[i] = d })
+      setDigits(next)
+      digitRefs.current[Math.min(pasted.length, 3)]?.focus()
+      if (pasted.length === 4) {
+        setPinError(false)
+        loadRaces()
+      }
+    }
+  }
+
   // ── Race loading ──────────────────────────────────────────────────────────
 
   async function loadRaces() {
@@ -55,6 +94,7 @@ export default function RunnerView() {
       ])
       if (allRes.status === 401 || activeRes.status === 401) {
         setPinError(true)
+        setDigits(['', '', '', ''])
         return
       }
       const allRaces: IRace[] = await allRes.json()
@@ -79,7 +119,7 @@ export default function RunnerView() {
         headers: { 'Content-Type': 'application/json', 'x-runner-pin': pin },
         body: JSON.stringify({ name: newRaceName.trim() }),
       })
-      if (res.status === 401) { setPinError(true); setView('pin'); return }
+      if (res.status === 401) { setPinError(true); setDigits(['', '', '', '']); setView('pin'); return }
       const race: IRace = await res.json()
       setActiveRace(race)
       setLastCheckIn(null)
@@ -101,7 +141,7 @@ export default function RunnerView() {
         method: 'PATCH',
         headers: { 'x-runner-pin': pin },
       })
-      if (res.status === 401) { setPinError(true); setView('pin'); return }
+      if (res.status === 401) { setPinError(true); setDigits(['', '', '', '']); setView('pin'); return }
       const race: IRace = await res.json()
       setActiveRace(race)
       setLastCheckIn(null)
@@ -189,7 +229,7 @@ export default function RunnerView() {
         setFeedback({ msg: `Checked in: ${cp?.shortName}`, ok: true })
         startUndoCountdown('checkin')
       } else if (res.status === 401) {
-        setView('pin'); setPinError(true)
+        setDigits(['', '', '', '']); setView('pin'); setPinError(true)
       } else {
         setFeedback({ msg: 'Check-in failed. Try again.', ok: false })
       }
@@ -214,7 +254,7 @@ export default function RunnerView() {
         setFeedback({ msg: `Status: ${label}`, ok: true })
         startUndoCountdown('status')
       } else if (res.status === 401) {
-        setView('pin'); setPinError(true)
+        setDigits(['', '', '', '']); setView('pin'); setPinError(true)
       } else {
         setFeedback({ msg: 'Update failed. Try again.', ok: false })
       }
@@ -233,19 +273,28 @@ export default function RunnerView() {
         <h1 className="text-2xl font-bold mb-1">Run Dave Run</h1>
         <p className="text-gray-400 mb-8 text-sm">Runner access</p>
         <div className="w-full max-w-xs">
-          <input
-            type="password"
-            inputMode="numeric"
-            placeholder="Enter PIN"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handlePinSubmit()}
-            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-center text-xl tracking-widest mb-3 focus:outline-none focus:border-green-500"
-          />
+          <div className="flex gap-3 justify-center mb-3">
+            {digits.map((digit, i) => (
+              <input
+                key={i}
+                ref={(el) => { digitRefs.current[i] = el }}
+                type="text"
+                inputMode="numeric"
+                maxLength={2}
+                value={digit}
+                autoFocus={i === 0}
+                autoComplete="off"
+                className="w-16 h-16 bg-gray-800 border border-gray-700 rounded-xl text-center text-2xl font-bold focus:outline-none focus:border-green-500 caret-transparent"
+                onChange={(e) => handleDigitChange(i, e.target.value)}
+                onKeyDown={(e) => handleDigitKeyDown(i, e)}
+                onPaste={i === 0 ? handlePaste : undefined}
+              />
+            ))}
+          </div>
           {pinError && <p className="text-red-400 text-sm text-center mb-3">Invalid PIN</p>}
           <button
             onClick={handlePinSubmit}
-            disabled={busy}
+            disabled={busy || pin.length < 4}
             className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
           >
             {busy ? 'Loading...' : 'Unlock'}
