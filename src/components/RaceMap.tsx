@@ -160,6 +160,13 @@ interface Props {
 
 function MapController({ checkIns }: { checkIns: ICheckIn[] }) {
   const map = useMap()
+
+  useEffect(() => {
+    const ro = new ResizeObserver(() => map.invalidateSize())
+    ro.observe(map.getContainer())
+    return () => ro.disconnect()
+  }, [map])
+
   useEffect(() => {
     const latest = checkIns[0]
     if (latest) {
