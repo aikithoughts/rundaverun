@@ -43,7 +43,7 @@ export default function SupporterView() {
     : 0
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen overflow-y-auto flex flex-col">
       {/* Header */}
       <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
         <div>
